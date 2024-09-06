@@ -1,0 +1,250 @@
+---
+title: 'Project #1'
+author: "Emily Byrne"
+date: "2022-10-06"
+output: html_document
+---
+
+## Project 1: Analysis of Customers Who Buy Diet Products and/or Candy {.tabset}
+
+### Packages
+
+```{r}
+library(ggplot2) #gives us the ability to plot our data
+library(completejourney) #where our data is located
+library(dplyr) #allows us to manipulate our data
+library(stringr) #allows us to work with character strings
+library(lubridate) #allows us to work with dates and times
+library(tidyverse) #allows us to clean up our data, makes it easier to read
+transactions <- get_transactions()
+```
+### Tables
+```{r}
+transactions
+products
+demographics
+```
+
+### Tables for Groups
+  We created three separate data tables for those households who purchase both candy and diet products, households who purchases either candy or diet products, and households who purchase neither. 
+
+```{r}
+both <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  filter(str_detect(product_type, regex("DIET", ignore_case = TRUE)),
+         str_detect(product_category, regex("CANDY", ignore_case = TRUE)))
+
+either <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  filter(str_detect(product_type, regex("DIET", ignore_case = TRUE))|
+         str_detect(product_category, regex("CANDY", ignore_case = TRUE)))
+
+neither <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  filter(!str_detect(product_type, regex("DIET", ignore_case = TRUE)),
+         !str_detect(product_category, regex("CANDY", ignore_case = TRUE)))
+
+```
+
+```{r}
+both
+either
+neither
+```
+
+### Distinct Households and their Purchasing Behavior Table
+  Here we mutated the original data table to contain a new variable called "Diet_vs._Candy" to tell which group the household belongs in. We also cut the data frame down to show only the distinct households IDs and the groups. 
+```{r}
+distinct_households <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  mutate(Diet_vs._Candy = ifelse(grepl("DIET", product_type) & grepl("CANDY", product_category), "Both", ifelse(grepl("DIET", product_type) | grepl("CANDY", product_category), "Either", "Neither"))) %>% 
+  group_by(Diet_vs._Candy) %>% 
+  summarize(distinct_household_id = unique(household_id))
+
+distinct_households
+```
+### Filtered Tables for Count of Groups
+  We filtered the table to show only the results for each group seperateluy to give us an accurate count of the amount of distinct households in each group. 
+```{r}
+distinct_households %>% 
+  filter(Diet_vs._Candy == "Both") %>%
+  count()
+
+distinct_households %>% 
+  filter(Diet_vs._Candy == "Either") %>%
+  count()
+
+count_neither <- distinct_households %>% 
+  filter(Diet_vs._Candy == "Neither") %>%
+  count()
+```
+
+### Graph grouped by age for Both Diet & Candy
+```{r}
+group_by_both <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  mutate(Diet_vs._Candy = ifelse(grepl("DIET", product_type) & grepl("CANDY", product_category), "Both", ifelse(grepl("DIET", product_type) | grepl("CANDY", product_category), "Either", "Neither"))) %>% 
+  group_by(Diet_vs._Candy, age) %>% 
+  filter(Diet_vs._Candy == "Both") %>%
+  summarize(distinct_household_id = unique(household_id)) %>%
+  ggplot(aes(x = age, fill = age)) +
+  geom_bar() +
+  ggtitle("The Age Range That Bought Both Diet Products & Candy Together", subtitle = "The data below shows which age range has the tendancy 
+ to buy both Diet products and Candy together throughout all transactions") +
+  xlab("Age Range") +
+  scale_y_continuous(name = "Number of Transactions") +
+  scale_fill_discrete("Age Range") +
+  coord_flip()
+
+group_by_both +
+  theme(plot.title = element_text(size = 13, face = "bold")) +
+  theme(legend.position = "none") +
+  theme(plot.subtitle = element_text(color = "azure4", size = 8)) +
+  theme(panel.background = element_rect(fill = "oldlace"))
+  
+```
+
+### Graph grouped by age for Either Diet or Candy
+```{r}
+group_by_either <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  mutate(Diet_vs._Candy = ifelse(grepl("DIET", product_type) & grepl("CANDY", product_category), "Both", ifelse(grepl("DIET", product_type) | grepl("CANDY", product_category), "Either", "Neither"))) %>% 
+  group_by(Diet_vs._Candy, age) %>% 
+  filter(Diet_vs._Candy == "Either") %>%
+  summarize(distinct_household_id = unique(household_id)) %>%
+  ggplot(aes(x = age, fill = age)) +
+  geom_bar() +
+  ggtitle("The Age Range That Bought Either Diet Products or Candy", subtitle = 
+"The data below shows which age range has the tendancy 
+ to buy either Diet products or Candy but not together throughout all transactions") +
+  xlab("Age Range") +
+  scale_y_continuous(name = "Number of Transactions") +
+  scale_fill_discrete("Age Range") +
+  coord_flip()
+
+group_by_either +
+  theme(plot.title = element_text(size = 13, face = "bold")) +
+  theme(legend.position = "none") +
+  theme(plot.subtitle = element_text(color = "azure4", size = 8)) +
+  theme(panel.background = element_rect(fill = "oldlace"))
+```
+
+### Graph grouped by age for Neither Diet nor Candy
+```{r}
+group_by_neither <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  mutate(Diet_vs._Candy = ifelse(grepl("DIET", product_type) & grepl("CANDY", product_category), "Both", ifelse(grepl("DIET", product_type) | grepl("CANDY", product_category), "Either", "Neither"))) %>% 
+  group_by(Diet_vs._Candy, age) %>% 
+  filter(Diet_vs._Candy == "Neither") %>%
+  summarize(distinct_household_id = unique(household_id)) %>%
+  ggplot(aes(x = age, fill = age)) +
+  geom_bar() +
+  ggtitle("The Age Range That Bought Neither Diet Products nor Candy", subtitle = "The data below shows which age range has the tendancy 
+ to buy neither Diet products nor Candy throughout all transactions") +
+  xlab("Age Range") +
+  scale_y_continuous(name = "Number of Transactions") +
+  scale_fill_discrete("Age Range") +
+  coord_flip()
+
+group_by_neither +
+  theme(plot.title = element_text(size = 13, face = "bold")) +
+  theme(legend.position = "none") +
+  theme(plot.subtitle = element_text(color = "azure4", size = 8)) +
+  theme(panel.background = element_rect(fill = "oldlace"))
+```
+
+
+### Graph grouped by income for Both Diet and Candy
+```{r}
+income_by_both <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  mutate(Diet_vs._Candy = ifelse(grepl("DIET", product_type) & grepl("CANDY", product_category), "Both", ifelse(grepl("DIET", product_type) | grepl("CANDY", product_category), "Either", "Neither"))) %>% 
+  group_by(Diet_vs._Candy, income) %>% 
+  filter(Diet_vs._Candy == "Both") %>%
+  summarize(distinct_household_id = unique(household_id)) %>%
+   ggplot(aes(x = income, fill = income)) +
+  geom_bar() +
+  ggtitle("The Income Range That Bought Both Diet Products & Candy Together", subtitle = "The data below shows which income range has the tendancy 
+ to buy both Diet products and Candy throughout all transactions") +
+  xlab("Income Range") +
+  scale_y_continuous(name = "Number of Transactions") +
+  scale_fill_discrete("Income Range") +
+  coord_flip()
+
+income_by_both +
+  theme(plot.title = element_text(size = 13, face = "bold")) +
+  theme(legend.position = "none") +
+  theme(plot.subtitle = element_text(color = "azure4", size = 8)) +
+  theme(panel.background = element_rect(fill = "oldlace"))
+  
+```
+
+### Graph grouped by income for Either Diet or Candy
+```{r}
+income_by_either <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  mutate(Diet_vs._Candy = ifelse(grepl("DIET", product_type) & grepl("CANDY", product_category), "Both", ifelse(grepl("DIET", product_type) | grepl("CANDY", product_category), "Either", "Neither"))) %>% 
+  group_by(Diet_vs._Candy, income) %>% 
+  filter(Diet_vs._Candy == "Either") %>%
+  summarize(distinct_household_id = unique(household_id)) %>%
+   ggplot(aes(x = income, fill = income)) +
+  geom_bar() +
+  ggtitle("The Income Range That Bought Either Diet Products or Candy", subtitle = "The data below shows which income range has the tendancy 
+ to buy either Diet products or Candy throughout all transactions") +
+  xlab("Income Range") +
+  scale_y_continuous(name = "Number of Transactions") +
+  scale_fill_discrete("Income Range") +
+  coord_flip()
+
+income_by_either +
+  theme(plot.title = element_text(size = 13, face = "bold")) +
+  theme(legend.position = "none") +
+  theme(plot.subtitle = element_text(color = "azure4", size = 8)) +
+  theme(panel.background = element_rect(fill = "oldlace"))
+```
+
+### Graph grouped by income for Neither Diet nor Candy
+```{r}
+income_by_neither <- products %>% 
+  inner_join(transactions) %>% 
+  inner_join(demographics) %>% 
+  mutate(Diet_vs._Candy = ifelse(grepl("DIET", product_type) & grepl("CANDY", product_category), "Both", ifelse(grepl("DIET", product_type) | grepl("CANDY", product_category), "Either", "Neither"))) %>% 
+  group_by(Diet_vs._Candy, income) %>% 
+  filter(Diet_vs._Candy == "Neither") %>%
+  summarize(distinct_household_id = unique(household_id)) %>%
+   ggplot(aes(x = income, fill = income)) +
+  geom_bar() +
+  ggtitle("The Income Range That Bought Neither Diet Products nor Candy", subtitle = "The data below shows which income range has the tendancy 
+ to buy neither Diet products nor Candy throughout all transactions") +
+  xlab("Income Range") +
+  scale_y_continuous(name = "Number of Transactions") +
+  scale_fill_discrete("Income Range") +
+  coord_flip()
+
+income_by_neither +
+  theme(plot.title = element_text(size = 13, face = "bold")) +
+  theme(legend.position = "none") +
+  theme(plot.subtitle = element_text(color = "azure4", size = 8)) +
+  theme(panel.background = element_rect(fill = "oldlace"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
